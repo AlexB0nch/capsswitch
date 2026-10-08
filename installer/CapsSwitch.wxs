@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="CapsSwitch" Language="1033" Version="1.0.0"
+  <Product Id="*" Name="CapsSwitch" Language="1033" Version="1.0.1"
            Manufacturer="Aleix" UpgradeCode="6F2C3B1E-7A44-4D2B-9C1E-5B8A0D3F7E21">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"
              Description="CapsLock switches keyboard layout; Shift+CapsLock toggles Caps Lock" />
@@ -8,7 +8,7 @@
 
     <!-- Новая версия поверх старой: старая удаляется автоматически -->
     <Upgrade Id="6F2C3B1E-7A44-4D2B-9C1E-5B8A0D3F7E21">
-      <UpgradeVersion Minimum="0.0.0" Maximum="1.0.0" IncludeMinimum="yes" IncludeMaximum="no"
+      <UpgradeVersion Minimum="0.0.0" Maximum="1.0.1" IncludeMinimum="yes" IncludeMaximum="no"
                       Property="OLDVERSIONFOUND" />
     </Upgrade>
 

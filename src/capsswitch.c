@@ -61,7 +61,62 @@ static void switch_layout(void)
     PostMessageW(fg, WM_INPUTLANGCHANGEREQUEST, 0, (LPARAM)next);
 }
 
+/* ---------- удалённый доступ и виртуальные машины ---------- */
+
+/* Если активно окно удалённого рабочего стола или виртуальной машины,
+   CapsLock отдаём ему как есть: раскладку переключит CapsSwitch на той стороне. */
+static const WCHAR *const k_remote_clients[] = {
+    L"mstsc.exe", L"msrdc.exe", L"msrdcw.exe", L"Windows365.exe", L"WindowsApp.exe",
+    L"RDCMan.exe", L"mRemoteNG.exe", L"RoyalTS.exe", L"vmconnect.exe",
+    L"AnyDesk.exe", L"TeamViewer.exe", L"rustdesk.exe", L"parsecd.exe",
+    L"RemotePCDesktop.exe", L"Splashtop Business.exe", L"SRStreamer.exe",
+    L"vncviewer.exe", L"tvnviewer.exe", L"VirtualBoxVM.exe", L"vmware.exe",
+    L"vmware-vmx.exe", L"vmware-remotemks.exe", L"prl_client_app.exe",
+    NULL
+};
+
+static BOOL foreground_is_remote_client(void)
+{
+    static DWORD cachedPid;
+    static BOOL cachedResult;
+
+    HWND fg = GetForegroundWindow();
+    if (!fg)
+        return FALSE;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(fg, &pid);
+    if (pid == cachedPid)
+        return cachedResult;
+
+    BOOL result = FALSE;
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (h) {
+        WCHAR path[MAX_PATH];
+        DWORD len = MAX_PATH;
+        if (QueryFullProcessImageNameW(h, 0, path, &len)) {
+            const WCHAR *name = wcsrchr(path, L'\\');
+            name = name ? name + 1 : path;
+            for (int i = 0; k_remote_clients[i]; i++)
+                if (_wcsicmp(name, k_remote_clients[i]) == 0) {
+                    result = TRUE;
+                    break;
+                }
+        }
+        CloseHandle(h);
+    }
+    cachedPid = pid;
+    cachedResult = result;
+    return result;
+}
+
 /* ---------- перехват клавиатуры ---------- */
+
+static BOOL shift_down(void)
+{
+    /* Своё отслеживание + системное состояние: при удалённом доступе
+       события Shift иногда приходят не так, как с физической клавиатуры */
+    return g_lshift || g_rshift || (GetAsyncKeyState(VK_SHIFT) & 0x8000);
+}
 
 static LRESULT CALLBACK kbd_proc(int code, WPARAM wp, LPARAM lp)
 {
@@ -74,12 +129,12 @@ static LRESULT CALLBACK kbd_proc(int code, WPARAM wp, LPARAM lp)
         case VK_RSHIFT: g_rshift = down; break;
         case VK_SHIFT:  g_lshift = g_rshift = down; break;
         case VK_CAPITAL:
-            if (k->flags & LLKHF_INJECTED)
-                break; /* синтетические нажатия других программ не трогаем */
+            /* Синтетические (LLKHF_INJECTED) нажатия обрабатываем так же:
+               так приходят клавиши через AnyDesk, TeamViewer и т.п. */
             if (down) {
                 if (g_capsSwallowed)
                     return 1; /* автоповтор удерживаемой клавиши */
-                if (!(g_lshift || g_rshift)) {
+                if (!shift_down() && !foreground_is_remote_client()) {
                     g_capsSwallowed = TRUE;
                     switch_layout();
                     return 1;
