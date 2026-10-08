@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="CapsSwitch" Language="1033" Version="1.0.0"
+           Manufacturer="Aleix" UpgradeCode="6F2C3B1E-7A44-4D2B-9C1E-5B8A0D3F7E21">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"
+             Description="CapsLock switches keyboard layout; Shift+CapsLock toggles Caps Lock" />
+    <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+
+    <!-- Новая версия поверх старой: старая удаляется автоматически -->
+    <Upgrade Id="6F2C3B1E-7A44-4D2B-9C1E-5B8A0D3F7E21">
+      <UpgradeVersion Minimum="0.0.0" Maximum="1.0.0" IncludeMinimum="yes" IncludeMaximum="no"
+                      Property="OLDVERSIONFOUND" />
+    </Upgrade>
+
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="CapsSwitch">
+          <Component Id="MainExe" Guid="3D9A1F47-2C6B-4E8D-A1B3-7F0E5C2D9A64" Win64="yes">
+            <File Id="CapsSwitchExe" Name="CapsSwitch.exe" Source="build/CapsSwitch.exe" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="Main" Level="1">
+      <ComponentRef Id="MainExe" />
+    </Feature>
+
+    <!-- Установка: регистрируем автозапуск при входе (с правами администратора, если они есть) -->
+    <CustomAction Id="RegisterTask" FileKey="CapsSwitchExe" ExeCommand="--install"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <!-- Удаление: останавливаем программу и снимаем автозапуск -->
+    <CustomAction Id="UnregisterTask" FileKey="CapsSwitchExe" ExeCommand="--uninstall"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <!-- Сразу запускаем у текущего пользователя, не дожидаясь перезахода -->
+    <CustomAction Id="LaunchNow" FileKey="CapsSwitchExe" ExeCommand=""
+                  Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
+
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallInitialize" />
+      <Custom Action="UnregisterTask" Before="RemoveFiles">REMOVE="ALL"</Custom>
+      <Custom Action="RegisterTask" After="InstallFiles">NOT REMOVE="ALL"</Custom>
+      <Custom Action="LaunchNow" After="InstallFinalize">NOT REMOVE="ALL"</Custom>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>
